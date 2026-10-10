@@ -1,0 +1,162 @@
+@Override
+public void filter(ContainerRequestContext requestContext) throws IOException {
+    String authHeader = requestContext.getHeaderString("Authorization");
+
+    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        return; // Retorna ou aborta se a rota for obrigatoriamente protegida
+    }
+
+    String token = authHeader.substring("Bearer ".length());
+
+    // 1. Valida o token e busca o usuário (Exemplo mockado)
+    Usuario usuarioDoBanco = usuarioService.buscarPorToken(token); 
+
+    if (usuarioDoBanco != null) {
+        // 2. Cria o Principal com o nome/login do usuário
+        UsuarioPrincipal principal = new UsuarioPrincipal(usuarioDoBanco.getLogin());
+        
+        // 3. Carrega as roles do banco de dados de forma dinâmica
+        Set<String> roles = new HashSet<>();
+        for (String permissao : usuarioDoBanco.getPermissoes()) {
+            roles.add(permissao); // Ex: adiciona "ADMIN", "USER", "GESTOR"
+        }
+
+        boolean isSecure = requestContext.getSecurityInfo().isSecure();
+        
+        // 4. Injeta no SecurityContext do Jersey
+        requestContext.setSecurityContext(new CustomSecurityContext(principal, roles, isSecure));
+    } else {
+        requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
+    }
+}
+
+
+@Override
+public void filter(ContainerRequestContext requestContext) throws IOException {
+    String authHeader = requestContext.getHeaderString("Authorization");
+
+    if (authHeader != null && authHeader.startsWith("Bearer ")) {
+        String token = authHeader.substring("Bearer ".length());
+
+        try {
+            // 1. Decodifica e valida o token usando uma biblioteca (ex: jjwt ou auth0)
+            Claims claims = Jwts.parser().setSigningKey(CHAVE_SECRETA).parseClaimsJws(token).getBody();
+            
+            String username = claims.getSubject();
+            
+            // 2. Extrai a lista de roles que veio salva dentro do JWT
+            List<String> rolesDoToken = claims.get("roles", List.class); 
+
+            UsuarioPrincipal principal = new UsuarioPrincipal(username);
+            Set<String> roles = new HashSet<>(rolesDoToken); // Converte para Set
+
+            boolean isSecure = requestContext.getSecurityInfo().isSecure();
+            
+            // 3. Define o contexto de segurança
+            requestContext.setSecurityContext(new CustomSecurityContext(principal, roles, isSecure));
+            
+        } catch (Exception e) {
+            // Token inválido, expirado ou corrompido
+            requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
+        }
+    }
+}
+
+
+@Override
+public void filter(ContainerRequestContext requestContext) throws IOException {
+    String authHeader = requestContext.getHeaderString("Authorization");
+
+    if (authHeader != null && authHeader.startsWith("Basic ")) {
+        String base64Credentials = authHeader.substring("Basic ".length()).trim();
+        String credentials = new String(Base64.getDecoder().decode(base64Credentials), StandardCharsets.UTF_8);
+        
+        // credentials tem o formato "usuario:senha"
+        String[] values = credentials.split(":", 2);
+        String username = values[0];
+        String password = values[1];
+
+        // Se for o usuário mestre do sistema, define como ADMIN
+        if ("admin".equals(username) && "senhaSuperSegura123".equals(password)) {
+            UsuarioPrincipal principal = new UsuarioPrincipal(username);
+            
+            Set<String> roles = new HashSet<>();
+            roles.add("ADMIN"); // <--- AQUI o usuário vira ADMIN de fato
+
+            boolean isSecure = requestContext.getSecurityInfo().isSecure();
+            requestContext.setSecurityContext(new CustomSecurityContext(principal, roles, isSecure));
+        }
+    }
+}
+
+
+package com.exemplo.rest.security;
+
+import javax.annotation.Priority;
+import javax.ws.rs.Priorities;
+import javax.ws.rs.container.ContainerRequestContext;
+import javax.ws.rs.container.ContainerRequestFilter;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.ext.Provider;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
+
+@Provider
+@Priority(Priorities.AUTHENTICATION) // Garante que roda antes de verificar o @RolesAllowed
+public class AuthenticationFilter implements ContainerRequestFilter {
+
+    @Override
+    public void filter(ContainerRequestContext requestContext) throws IOException {
+        // 1. Pega a credencial da requisição (ex: cabeçalho HTTP)
+        String authHeader = requestContext.getHeaderString("Authorization");
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            // Se não enviar token, não define papéis (o Jersey vai bloquear com 403 nas rotas protegidas)
+            return; 
+        }
+
+        String token = authHeader.substring("Bearer ".length());
+
+        // 2. Cria a lista que vai guardar os papéis do usuário
+        Set<String> papeisDoUsuario = new HashSet<>();
+        String nomeUsuario = "";
+
+        // 3. REGRA DE NEGÓCIO: Define o papel baseado na validação do seu sistema
+        if ("token-do-joao".equals(token)) {
+            nomeUsuario = "João Silva";
+            papeisDoUsuario.add("USER"); // João é apenas usuário comum
+            
+        } else if ("token-da-maria".equals(token)) {
+            nomeUsuario = "Maria Souza";
+            papeisDoUsuario.add("USER");
+            papeisDoUsuario.add("ADMIN"); // Maria tem dois papéis: USER e ADMIN [1]
+            
+        } else {
+            // Token inválido, barra imediatamente com 401 Unauthorized
+            requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
+            return;
+        }
+
+        // 4. Monta o objeto Principal e o SecurityContext Customizado com os papéis definidos
+        UsuarioPrincipal principal = new UsuarioPrincipal(nomeUsuario);
+        boolean isSecure = requestContext.getSecurityInfo().isSecure();
+        
+        // Injeta no Jersey o usuário já com seus respectivos papéis [1]
+        requestContext.setSecurityContext(new CustomSecurityContext(principal, papeisDoUsuario, isSecure));
+    }
+}
+
+
+		String token = auth_header.substring("Bearer ".length());
+		if ("admin-token".equals(token)) {
+//---
+			UserPrincipal principal = new UserPrincipal("JoaoAdmin");
+            Set<String> roles = new HashSet<>();
+            roles.add("ADMIN"); 
+            boolean isSecure = requestContext.getSecurityContext().isSecure();
+            requestContext.setSecurityContext(new CustomSecurityContext(principal, roles, isSecure));
+//---
+		} else {
+            requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
+        }

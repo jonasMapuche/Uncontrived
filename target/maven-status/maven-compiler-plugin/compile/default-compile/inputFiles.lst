@@ -1,5 +1,11 @@
 C:\Workspace\Eclipse\Uncontrived\src\main\java\br\com\stomach\Uncontrived\controllers\UncontrivedController.java
 C:\Workspace\Eclipse\Uncontrived\src\main\java\br\com\stomach\Uncontrived\models\Artless.java
 C:\Workspace\Eclipse\Uncontrived\src\main\java\br\com\stomach\Uncontrived\models\Epigraph.java
+C:\Workspace\Eclipse\Uncontrived\src\main\java\br\com\stomach\Uncontrived\models\UserLogin.java
+C:\Workspace\Eclipse\Uncontrived\src\main\java\br\com\stomach\Uncontrived\security\ApplicationConfig.java
+C:\Workspace\Eclipse\Uncontrived\src\main\java\br\com\stomach\Uncontrived\security\AuthenticationFilter.java
+C:\Workspace\Eclipse\Uncontrived\src\main\java\br\com\stomach\Uncontrived\security\CustomSecurityContext.java
+C:\Workspace\Eclipse\Uncontrived\src\main\java\br\com\stomach\Uncontrived\security\UserPrincipal.java
 C:\Workspace\Eclipse\Uncontrived\src\main\java\br\com\stomach\Uncontrived\services\ArtlessService.java
 C:\Workspace\Eclipse\Uncontrived\src\main\java\br\com\stomach\Uncontrived\services\interfaces\IArtlessService.java
+C:\Workspace\Eclipse\Uncontrived\src\main\java\br\com\stomach\Uncontrived\services\TokenService.java
